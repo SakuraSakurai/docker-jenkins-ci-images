@@ -1,0 +1,51 @@
+#!groovy
+pipeline {
+
+    agent any
+
+    triggers {
+        pollSCM('*/15 * * * 1-5')
+    }
+
+    options {
+        // Only keep the 10 most recent builds
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    environment {
+        TAG = 'latest'
+    }
+
+    stages {
+
+        // ==================================================
+        // dev
+        // ==================================================
+
+        stage('Docker Build and Push (cap-dev)') {
+
+            // トリガー設定
+            when {
+                branch 'PR-*'
+            }
+
+            // 環境変数設定
+            environment {
+                ENV = 'dev'
+            }
+
+            // コマンド設定
+            steps {
+                script {
+                    def Dockerfiledir = sh("`pwd`/Dockerfiles/*")
+                    Dockerfiledir.each { module_name ->
+                        dir("/Dockerfiles/${module_name}") {
+                            // Build the docker image using a Dockerfile
+                            docker.build("${ENV}-${module_name}:${TAG}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
